@@ -44,6 +44,7 @@ public class LdapUserManagerTest {
         User user = userManager.getUser("gauss", "password");
 
         assertEquals("gauss", user.getUserId());
+        assertEquals("gauss@ldap.forumsys.com", user.getEmail());
     }
 
     @Test
@@ -81,5 +82,26 @@ public class LdapUserManagerTest {
         Role role = userManager.getRole("admin");
 
         assertTrue(role.getPermission().isPermissionNameSet("ADMIN"));
+    }
+
+    @Test
+    public void testInvalidEmailPropertyDoesNotThrowNullPointerException() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_EMAIL_PROPERTY, "invalidField");
+        userManager = new LdapUserManager(props);
+        User user = userManager.getUser("gauss", "password");
+
+        assertEquals("gauss", user.getUserId());
+        assertEquals("", user.getEmail());
+    }
+
+    @Test
+    public void testInvalidIdPropertyThrowsUserManagerException() throws Exception {
+        thrown.expect(UserManagerException.class);
+
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_USERID_PROPERTY, "invalidField");
+        userManager = new LdapUserManager(props);
+        userManager.getUser("gauss", "password");
     }
 }

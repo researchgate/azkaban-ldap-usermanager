@@ -86,8 +86,19 @@ public class LdapUserManager implements UserManager {
                 throw new UserManagerException("User is not member of allowed groups");
             }
 
-            User user = new User(entry.get(ldapUserIdProperty).getString());
-            user.setEmail(entry.get(ldapUEmailProperty).getString());
+            Attribute idAttribute = entry.get(ldapUserIdProperty);
+            Attribute emailAttribute = null;
+            if (ldapUEmailProperty.length() > 0) {
+                emailAttribute = entry.get(ldapUEmailProperty);
+            }
+
+            if (idAttribute == null) {
+                throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
+            }
+            User user = new User(idAttribute.getString());
+            if (emailAttribute != null) {
+                user.setEmail(emailAttribute.getString());
+            }
             user.addRole("admin");
 
             connection.unBind();
