@@ -1,6 +1,8 @@
 Azkaban Ldap UserManager
 ========================
 
+[![Build Status](https://travis-ci.org/researchgate/azkaban-ldap-usermanager.svg?branch=master)](https://travis-ci.org/researchgate/azkaban-ldap-usermanager)
+
 This plugin enables ldap authentication for the Azkaban workflow manager (https://azkaban.github.io/)
 
 This plugin is work in progress, configuration options may change.
