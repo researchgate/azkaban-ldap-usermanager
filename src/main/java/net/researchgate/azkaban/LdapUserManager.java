@@ -33,7 +33,6 @@ public class LdapUserManager implements UserManager {
     private String ldapUserBase;
     private String ldapUserIdProperty;
     private String ldapUEmailProperty;
-    private String ldapUserSearch;
     private String ldapBindAccount;
     private String ldapBindPassword;
     private List<String> ldapAllowedGroups;
@@ -50,8 +49,6 @@ public class LdapUserManager implements UserManager {
         ldapBindPassword = props.getString(LDAP_BIND_PASSWORD);
         ldapAllowedGroups = props.getStringList(LDAP_ALLOWED_GROUPS);
         ldapGroupSearchBase = props.getString(LDAP_GROUP_SEARCH_BASE);
-
-        ldapUserSearch = "(" + ldapUserIdProperty + "={0})";
     }
 
     @Override
@@ -66,7 +63,7 @@ public class LdapUserManager implements UserManager {
             LdapConnection connection = getLdapConnection();
             EntryCursor result = connection.search(
                     ldapUserBase,
-                    ldapUserSearch.replace("{0}", username),
+                    "(" + escapeLDAPSearchFilter(ldapUserIdProperty + "=" + username) + ")",
                     SearchScope.SUBTREE
             );
 
@@ -148,7 +145,7 @@ public class LdapUserManager implements UserManager {
 
             EntryCursor result = connection.search(
                     ldapUserBase,
-                    ldapUserSearch.replace("{0}", username),
+                    "(" + escapeLDAPSearchFilter(ldapUserIdProperty + "=" + username) + ")",
                     SearchScope.SUBTREE
             );
 
@@ -193,5 +190,35 @@ public class LdapUserManager implements UserManager {
         LdapConnection connection = new LdapNetworkConnection(ldapHost, ldapPort, useSsl);
         connection.bind(ldapBindAccount, ldapBindPassword);
         return connection;
+    }
+
+    /**
+     * Taken from https://www.owasp.org/index.php/Preventing_LDAP_Injection_in_Java
+     */
+    public String escapeLDAPSearchFilter(String filter) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < filter.length(); i++) {
+            char curChar = filter.charAt(i);
+            switch (curChar) {
+                case '\\':
+                    sb.append("\\5c");
+                    break;
+                case '*':
+                    sb.append("\\2a");
+                    break;
+                case '(':
+                    sb.append("\\28");
+                    break;
+                case ')':
+                    sb.append("\\29");
+                    break;
+                case '\u0000':
+                    sb.append("\\00");
+                    break;
+                default:
+                    sb.append(curChar);
+            }
+        }
+        return sb.toString();
     }
 }

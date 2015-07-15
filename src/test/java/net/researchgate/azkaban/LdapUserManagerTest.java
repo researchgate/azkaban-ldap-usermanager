@@ -104,4 +104,10 @@ public class LdapUserManagerTest {
         userManager = new LdapUserManager(props);
         userManager.getUser("gauss", "password");
     }
+
+    @Test
+    public void testEscapeLDAPSearchFilter() throws Exception {
+        assertEquals("No special characters to escape", "Hi This is a test #çà", userManager.escapeLDAPSearchFilter("Hi This is a test #çà"));
+        assertEquals("LDAP Christams Tree", "Hi \\28This\\29 = is \\2a a \\5c test # ç à ô", userManager.escapeLDAPSearchFilter("Hi (This) = is * a \\ test # ç à ô"));
+    }
 }
