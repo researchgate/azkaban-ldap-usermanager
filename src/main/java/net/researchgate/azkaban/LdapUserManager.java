@@ -77,11 +77,11 @@ public class LdapUserManager implements UserManager {
                 throw new UserManagerException("More than one user found");
             }
 
-            connection.bind(entry.getDn(), password);
-
             if (!isMemberOfAllowedGroups(connection, username)) {
                 throw new UserManagerException("User is not member of allowed groups");
             }
+
+            connection.bind(entry.getDn(), password);
 
             Attribute idAttribute = entry.get(ldapUserIdProperty);
             Attribute emailAttribute = null;
