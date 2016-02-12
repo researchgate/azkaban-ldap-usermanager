@@ -103,7 +103,7 @@ public class LdapUserManager implements UserManager {
 
             return user;
         } catch (LdapException e) {
-            throw new UserManagerException("LDAP error", e);
+            throw new UserManagerException("LDAP error: " + e.getMessage(), e);
         } catch (IOException e) {
             throw new UserManagerException("IO error", e);
         } catch (CursorException e) {
