@@ -40,4 +40,13 @@ user.manager.ldap.bindAccount=cn=read-only-admin,dc=example,dc=com
 user.manager.ldap.bindPassword=password
 user.manager.ldap.allowedGroups=azkaban-ldap-group
 user.manager.ldap.groupSearchBase=ou=Groups,dc=example,dc=com
+user.manager.ldap.embeddedGroups=false
 ```
+
+Embedded Groups
+---------------
+
+Some LDAP schemas return the list of groups to which a DN belongs as a
+<List>memberOf attribute.  To use that group list, set
+```user.manager.ldap.embeddedGroups=true```.  Note: the lookup will be
+case-sensitive.
