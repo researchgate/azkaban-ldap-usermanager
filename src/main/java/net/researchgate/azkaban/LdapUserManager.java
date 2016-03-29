@@ -26,6 +26,7 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_BIND_PASSWORD = "user.manager.ldap.bindPassword";
     public static final String LDAP_ALLOWED_GROUPS = "user.manager.ldap.allowedGroups";
     public static final String LDAP_GROUP_SEARCH_BASE = "user.manager.ldap.groupSearchBase";
+    public static final String LDAP_EMBEDDED_GROUPS = "user.manager.ldap.embeddedGroups";
 
     private String ldapHost;
     private int ldapPort;
@@ -37,6 +38,7 @@ public class LdapUserManager implements UserManager {
     private String ldapBindPassword;
     private List<String> ldapAllowedGroups;
     private String ldapGroupSearchBase;
+    private boolean ldapEmbeddedGroups;
 
     public LdapUserManager(Props props) {
         ldapHost = props.getString(LDAP_HOST);
@@ -49,6 +51,7 @@ public class LdapUserManager implements UserManager {
         ldapBindPassword = props.getString(LDAP_BIND_PASSWORD);
         ldapAllowedGroups = props.getStringList(LDAP_ALLOWED_GROUPS);
         ldapGroupSearchBase = props.getString(LDAP_GROUP_SEARCH_BASE);
+        ldapEmbeddedGroups = props.getBoolean(LDAP_EMBEDDED_GROUPS, false);
     }
 
     @Override
@@ -77,7 +80,7 @@ public class LdapUserManager implements UserManager {
                 throw new UserManagerException("More than one user found");
             }
 
-            if (!isMemberOfAllowedGroups(connection, username)) {
+            if (!isMemberOfAllowedGroups(connection, entry)) {
                 throw new UserManagerException("User is not member of allowed groups");
             }
 
@@ -111,25 +114,38 @@ public class LdapUserManager implements UserManager {
         }
     }
 
-    private boolean isMemberOfAllowedGroups(LdapConnection connection, String username) throws CursorException, LdapException {
+    private boolean isMemberOfAllowedGroups(LdapConnection connection, Entry user) throws CursorException, LdapException {
         if (ldapAllowedGroups.size() == 0) {
             return true;
         }
-        for (String group : ldapAllowedGroups) {
-            Entry result = connection.lookup("cn=" + group + "," + ldapGroupSearchBase);
+	if (ldapEmbeddedGroups) {
+	    for (String groupName : ldapAllowedGroups) {
+		String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
+		Attribute groups = user.get("memberof");
+		if (groups.contains(goodGroup)){
+			    return true;
+		}
 
-            if (result == null) {
-                return false;
-            }
+	    }
+	    return false;
+	} else {
+	    Attribute username = user.get(ldapUserIdProperty);
+	    for (String group : ldapAllowedGroups) {
+		Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
 
-            Attribute members = result.get("memberuid");
+		if (result == null) {
+		    return false;
+		}
 
-            if (members == null) {
-                return false;
-            }
+		Attribute members = result.get("memberuid");
 
-            return members.contains(username);
-        }
+		if (members == null) {
+		    return false;
+		}
+
+		return members.contains(username.toString());
+	    }
+	}
 
         return false;
     }
@@ -153,9 +169,10 @@ public class LdapUserManager implements UserManager {
                 return false;
             }
 
-            result.get();
 
-            if (!isMemberOfAllowedGroups(connection, username)) {
+            final Entry entry = result.get();
+
+            if (!isMemberOfAllowedGroups(connection, entry)) {
                 return false;
             }
 
