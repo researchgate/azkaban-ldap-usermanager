@@ -27,6 +27,8 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_ALLOWED_GROUPS = "user.manager.ldap.allowedGroups";
     public static final String LDAP_GROUP_SEARCH_BASE = "user.manager.ldap.groupSearchBase";
     public static final String LDAP_EMBEDDED_GROUPS = "user.manager.ldap.embeddedGroups";
+    public static final String LDAP_GROUP_MEMBER_FIELD = "user.manager.ldap.groupMemberField";
+    public static final String LDAP_USE_DN_FOR_GROUP_MEMBERSHIP = "user.manager.ldap.useDnForGroupMembership";
 
     private String ldapHost;
     private int ldapPort;
@@ -39,6 +41,8 @@ public class LdapUserManager implements UserManager {
     private List<String> ldapAllowedGroups;
     private String ldapGroupSearchBase;
     private boolean ldapEmbeddedGroups;
+    private String ldapGroupMemberField;
+    private boolean ldapUseDnForGroupMembership;
 
     public LdapUserManager(Props props) {
         ldapHost = props.getString(LDAP_HOST);
@@ -52,6 +56,8 @@ public class LdapUserManager implements UserManager {
         ldapAllowedGroups = props.getStringList(LDAP_ALLOWED_GROUPS);
         ldapGroupSearchBase = props.getString(LDAP_GROUP_SEARCH_BASE);
         ldapEmbeddedGroups = props.getBoolean(LDAP_EMBEDDED_GROUPS, false);
+        ldapGroupMemberField = props.getString(LDAP_GROUP_MEMBER_FIELD, "memberuid");
+        ldapUseDnForGroupMembership = props.getBoolean(LDAP_USE_DN_FOR_GROUP_MEMBERSHIP, false);
     }
 
     @Override
@@ -118,34 +124,39 @@ public class LdapUserManager implements UserManager {
         if (ldapAllowedGroups.size() == 0) {
             return true;
         }
-	if (ldapEmbeddedGroups) {
-	    for (String groupName : ldapAllowedGroups) {
-		String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
-		Attribute groups = user.get("memberof");
-		if (groups.contains(goodGroup)){
-			    return true;
-		}
+        if (ldapEmbeddedGroups) {
+            for (String groupName : ldapAllowedGroups) {
+                String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
+                Attribute groups = user.get("memberof");
+                if (groups.contains(goodGroup)) {
+                    return true;
+                }
 
-	    }
-	    return false;
-	} else {
-	    Attribute username = user.get(ldapUserIdProperty);
-	    for (String group : ldapAllowedGroups) {
-		Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
+            }
+            return false;
+        } else {
+            String username;
+            if (ldapUseDnForGroupMembership) {
+                username = user.getDn().toString();
+            } else {
+                username = user.get(ldapUserIdProperty).toString();
+            }
+            for (String group : ldapAllowedGroups) {
+                Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
 
-		if (result == null) {
-		    return false;
-		}
+                if (result == null) {
+                    return false;
+                }
 
-		Attribute members = result.get("memberuid");
+                Attribute members = result.get(ldapGroupMemberField);
 
-		if (members == null) {
-		    return false;
-		}
+                if (members == null) {
+                    return false;
+                }
 
-		return members.contains(username.toString());
-	    }
-	}
+                return members.contains(username);
+            }
+        }
 
         return false;
     }
