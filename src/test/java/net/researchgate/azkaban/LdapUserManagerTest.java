@@ -34,8 +34,9 @@ public class LdapUserManagerTest {
         props.put(LdapUserManager.LDAP_EMAIL_PROPERTY, "mail");
         props.put(LdapUserManager.LDAP_BIND_ACCOUNT, "cn=read-only-admin,dc=example,dc=com");
         props.put(LdapUserManager.LDAP_BIND_PASSWORD, "password");
-        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "");
+        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "mathematicians");
         props.put(LdapUserManager.LDAP_GROUP_SEARCH_BASE, "dc=example,dc=com");
+        props.put(LdapUserManager.LDAP_GROUPS_FILE, getClass().getResource("/azkaban-groups.xml").getFile());
         return props;
     }
 
@@ -109,5 +110,35 @@ public class LdapUserManagerTest {
     public void testEscapeLDAPSearchFilter() throws Exception {
         assertEquals("No special characters to escape", "Hi This is a test #çà", userManager.escapeLDAPSearchFilter("Hi This is a test #çà"));
         assertEquals("LDAP Christams Tree", "Hi \\28This\\29 = is \\2a a \\5c test # ç à ô", userManager.escapeLDAPSearchFilter("Hi (This) = is * a \\ test # ç à ô"));
+    }
+
+    @Test
+    public void testUserIsMemberOfGroup() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ROLE_SUPPORT, "true");
+
+        userManager = new LdapUserManager(props);
+
+        User userRiemann = userManager.getUser("riemann", "password");
+        User userEinstein = userManager.getUser("einstein", "password");
+
+        assertTrue(userRiemann.getGroups().contains("mathematicians"));
+        assertTrue(userEinstein.getGroups().contains("scientists"));
+    }
+
+    @Test
+    public void testUserHasRoleAssigned() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ROLE_SUPPORT, "true");
+
+        userManager = new LdapUserManager(props);
+
+        User userRiemann = userManager.getUser("riemann", "password");
+        User userEinstein = userManager.getUser("einstein", "password");
+
+        assertTrue(userRiemann.hasRole("administrator"));
+
+        assertTrue(userEinstein.hasRole("viewer"));
+        assertTrue(userEinstein.hasRole("executor"));
     }
 }
