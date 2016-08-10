@@ -50,7 +50,6 @@ public class GroupsLoaderTest {
         String filePath = getClass().getResource("/azkaban-groups.xml").getFile();
         GroupsLoader loader = new GroupsLoader();
         loader.loadFromFile(filePath);
-
     }
 
     @Test

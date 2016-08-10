@@ -35,6 +35,9 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_ROLE_SUPPORT = "user.manager.ldap.roleSupport";
     public static final String LDAP_GROUPS_FILE = "user.manager.ldap.groupsFile";
 
+    private static final String USER_MEMBER_OF_ATTRIBUTE = "memberof";
+    private static final String GROUP_MEMBER_ATTRIBUTE = "memberuid";
+
     private String ldapHost;
     private int ldapPort;
     private boolean useSsl;
@@ -169,8 +172,8 @@ public class LdapUserManager implements UserManager {
         if (ldapEmbeddedGroups) {
             for (String groupName: groups.keySet()) {
 
-                String groupDN = "CN=" + groupName + "," + ldapGroupSearchBase;
-                Attribute groups = userEntry.get("memberof");
+                String groupDN = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
+                Attribute groups = userEntry.get(USER_MEMBER_OF_ATTRIBUTE);
 
                 if (groups.contains(groupDN)) {
                     user.addGroup(groupName);
@@ -183,13 +186,14 @@ public class LdapUserManager implements UserManager {
         Attribute userDn = userEntry.get(ldapUserIdProperty);
 
         for (String groupName: groups.keySet()) {
-            Entry result = connection.lookup("CN=" + groupName + "," + ldapGroupSearchBase);
+            String groupDN = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
+            Entry result = connection.lookup(groupDN);
 
             if (result == null) {
                 continue;
             }
 
-            Attribute members = result.get("memberuid");
+            Attribute members = result.get(GROUP_MEMBER_ATTRIBUTE);
 
             if (members == null) {
                 continue;
