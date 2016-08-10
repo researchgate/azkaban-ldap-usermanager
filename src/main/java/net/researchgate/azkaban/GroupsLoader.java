@@ -10,9 +10,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Loads groups from an XML file.
@@ -35,15 +33,16 @@ class GroupsLoader {
 
         Map<String, Role> roles = parseRoles(rootElement);
 
-        return parseGroups(rootElement, roles);
+        Map<String, Group> groups = parseGroups(rootElement, roles);
+
+        return Collections.unmodifiableMap(groups);
     }
 
     Map<String, Group> loadFromList(List<String> list) {
         Map<String, Group> groups = new HashMap<>();
 
         for (String groupName : list) {
-            Permission permission = new Permission();
-            permission.addPermission(Permission.Type.ADMIN);
+            Permission permission = new Permission(Permission.Type.ADMIN);
 
             Role role = new Role(DEFAULT_ROLE_NAME, permission);
 
@@ -53,7 +52,7 @@ class GroupsLoader {
             groups.put(group.getName(), group);
         }
 
-        return groups;
+        return Collections.unmodifiableMap(groups);
     }
 
     private Map<String, Role> parseRoles(Element rootElement) {
