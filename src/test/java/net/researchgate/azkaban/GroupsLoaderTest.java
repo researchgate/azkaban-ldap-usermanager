@@ -13,6 +13,22 @@ import static org.junit.Assert.*;
 public class GroupsLoaderTest {
 
     @Test(expected = IllegalArgumentException.class)
+    public void testFilePathIsNull() {
+        GroupsLoader loader = new GroupsLoader();
+        loader.loadFromFile(null);
+
+        fail("GroupsLoader should throw an exception when a `null` file path is provided");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testFilePathIsEmpty() {
+        GroupsLoader loader = new GroupsLoader();
+        loader.loadFromFile("");
+
+        fail("GroupsLoader should throw an exception when an empty no file path is provided");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
     public void testFileDoesNotExists() {
         GroupsLoader loader = new GroupsLoader();
         loader.loadFromFile("does-not-exists.xml");

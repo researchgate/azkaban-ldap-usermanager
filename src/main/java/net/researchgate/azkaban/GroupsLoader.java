@@ -107,11 +107,15 @@ class GroupsLoader {
     }
 
     private File loadFile(String path) {
+        if (path == null || path.isEmpty()) {
+            throw new IllegalArgumentException("Groups file can not be empty.");
+        }
+
         File file = new File(path);
 
         if (!file.exists()) {
             throw new IllegalArgumentException(
-                    String.format("Roles file does not exists: '%s'", path)
+                    String.format("Groups file does not exists: '%s'", path)
             );
         }
 
