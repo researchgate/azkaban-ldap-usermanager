@@ -14,6 +14,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Loads groups from an XML file.
+ */
 class GroupsLoader {
 
     private static final String DEFAULT_ROLE_NAME = "admin";

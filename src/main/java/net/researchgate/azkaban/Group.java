@@ -7,6 +7,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * A group to which Azkaban users belong to.
+ * It is used to map groups from the XML file.
+ */
 class Group {
 
     private String name;
