@@ -1,0 +1,13 @@
+<!ELEMENT azkaban-groups (groups,roles)>
+
+<!ELEMENT groups (group)+>
+<!ELEMENT group EMPTY>
+<!ATTLIST group
+        name ID #REQUIRED
+        roles IDREFS #REQUIRED>
+
+<!ELEMENT roles (role)+>
+<!ELEMENT role EMPTY>
+<!ATTLIST role
+        name ID #REQUIRED
+        permissions CDATA #REQUIRED>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE azkaban-groups SYSTEM "azkaban-groups.dtd">
+<azkaban-groups>
+    <groups>
+        <group name="mathematicians" roles="administrator" />
+        <group name="scientists" roles="viewer executor" />
+        <group name="viewers" roles="viewer" />
+    </groups>
+
+    <roles>
+        <role name="administrator" permissions="ADMIN" />
+        <role name="executor" permissions="WRITE EXECUTE" />
+        <role name="viewer" permissions="READ" />
+    </roles>
+</azkaban-groups>

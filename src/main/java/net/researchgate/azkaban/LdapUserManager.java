@@ -1,6 +1,9 @@
 package net.researchgate.azkaban;
 
-import azkaban.user.*;
+import azkaban.user.Role;
+import azkaban.user.User;
+import azkaban.user.UserManager;
+import azkaban.user.UserManagerException;
 import azkaban.utils.Props;
 import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
@@ -12,7 +15,9 @@ import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class LdapUserManager implements UserManager {
 
@@ -27,6 +32,11 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_ALLOWED_GROUPS = "user.manager.ldap.allowedGroups";
     public static final String LDAP_GROUP_SEARCH_BASE = "user.manager.ldap.groupSearchBase";
     public static final String LDAP_EMBEDDED_GROUPS = "user.manager.ldap.embeddedGroups";
+    public static final String LDAP_ROLE_SUPPORT = "user.manager.ldap.roleSupport";
+    public static final String LDAP_GROUPS_FILE = "user.manager.ldap.groupsFile";
+
+    private static final String USER_MEMBER_OF_ATTRIBUTE = "memberof";
+    private static final String GROUP_MEMBER_ATTRIBUTE = "memberuid";
 
     private String ldapHost;
     private int ldapPort;
@@ -39,6 +49,11 @@ public class LdapUserManager implements UserManager {
     private List<String> ldapAllowedGroups;
     private String ldapGroupSearchBase;
     private boolean ldapEmbeddedGroups;
+    private boolean ldapRoleSupport;
+    private String ldapGroupsFile;
+
+    private Map<String, Group> groups;
+    private Map<String, Role> roles;
 
     public LdapUserManager(Props props) {
         ldapHost = props.getString(LDAP_HOST);
@@ -52,6 +67,34 @@ public class LdapUserManager implements UserManager {
         ldapAllowedGroups = props.getStringList(LDAP_ALLOWED_GROUPS);
         ldapGroupSearchBase = props.getString(LDAP_GROUP_SEARCH_BASE);
         ldapEmbeddedGroups = props.getBoolean(LDAP_EMBEDDED_GROUPS, false);
+        ldapRoleSupport = props.getBoolean(LDAP_ROLE_SUPPORT, false);
+        ldapGroupsFile = props.getString(LDAP_GROUPS_FILE);
+
+        loadGroups();
+        resolveRoles();
+    }
+
+    private void loadGroups() {
+        GroupsLoader loader = new GroupsLoader();
+
+        if (ldapRoleSupport) {
+            groups = loader.loadFromFile(ldapGroupsFile);
+            return;
+        }
+
+        groups = loader.loadFromList(ldapAllowedGroups);
+    }
+
+    private void resolveRoles() {
+        roles = new HashMap<>();
+
+        for (Map.Entry<String, Group> entry : groups.entrySet()) {
+            Group group = entry.getValue();
+
+            for (Role role : group.getRoles()) {
+                roles.put(role.getName(), role);
+            }
+        }
     }
 
     @Override
@@ -80,26 +123,16 @@ public class LdapUserManager implements UserManager {
                 throw new UserManagerException("More than one user found");
             }
 
-            if (!isMemberOfAllowedGroups(connection, entry)) {
+            connection.bind(entry.getDn(), password);
+
+            User user = createUserFromEntry(entry);
+            addGroupsToUser(user, entry, connection);
+
+            if (!isMemberOfAllowedGroups(user)) {
                 throw new UserManagerException("User is not member of allowed groups");
             }
 
-            connection.bind(entry.getDn(), password);
-
-            Attribute idAttribute = entry.get(ldapUserIdProperty);
-            Attribute emailAttribute = null;
-            if (ldapUEmailProperty.length() > 0) {
-                emailAttribute = entry.get(ldapUEmailProperty);
-            }
-
-            if (idAttribute == null) {
-                throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
-            }
-            User user = new User(idAttribute.getString());
-            if (emailAttribute != null) {
-                user.setEmail(emailAttribute.getString());
-            }
-            user.addRole("admin");
+            assignRolesToUser(user);
 
             connection.unBind();
             connection.close();
@@ -114,38 +147,81 @@ public class LdapUserManager implements UserManager {
         }
     }
 
-    private boolean isMemberOfAllowedGroups(LdapConnection connection, Entry user) throws CursorException, LdapException {
-        if (ldapAllowedGroups.size() == 0) {
+    private User createUserFromEntry(Entry entry) throws UserManagerException, LdapException {
+        Attribute idAttribute = entry.get(ldapUserIdProperty);
+        Attribute emailAttribute = null;
+
+        if (idAttribute == null) {
+            throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
+        }
+
+        if (!ldapUEmailProperty.isEmpty()) {
+            emailAttribute = entry.get(ldapUEmailProperty);
+        }
+
+        User user = new User(idAttribute.getString());
+
+        if (emailAttribute != null) {
+            user.setEmail(emailAttribute.getString());
+        }
+
+        return user;
+    }
+
+    private void addGroupsToUser(User user, Entry userEntry, LdapConnection connection) throws LdapException {
+        if (ldapEmbeddedGroups) {
+            for (String groupName: groups.keySet()) {
+
+                String groupDN = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
+                Attribute groups = userEntry.get(USER_MEMBER_OF_ATTRIBUTE);
+
+                if (groups.contains(groupDN)) {
+                    user.addGroup(groupName);
+                }
+            }
+
+            return;
+        }
+
+        Attribute userDn = userEntry.get(ldapUserIdProperty);
+
+        for (String groupName: groups.keySet()) {
+            String groupDN = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
+            Entry result = connection.lookup(groupDN);
+
+            if (result == null) {
+                continue;
+            }
+
+            Attribute members = result.get(GROUP_MEMBER_ATTRIBUTE);
+
+            if (members == null) {
+                continue;
+            }
+
+            if (members.contains(userDn.toString())) {
+                user.addGroup(groupName);
+            }
+        }
+    }
+
+    private void assignRolesToUser(User user) {
+        for (String groupName : user.getGroups()) {
+            Group group = groups.get(groupName);
+            group.assignRolesToUser(user);
+        }
+    }
+
+    private boolean isMemberOfAllowedGroups(User user) throws CursorException, LdapException {
+        if (!ldapRoleSupport && ldapAllowedGroups.size() == 0) {
             return true;
         }
-	if (ldapEmbeddedGroups) {
-	    for (String groupName : ldapAllowedGroups) {
-		String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
-		Attribute groups = user.get("memberof");
-		if (groups.contains(goodGroup)){
-			    return true;
-		}
 
-	    }
-	    return false;
-	} else {
-	    Attribute username = user.get(ldapUserIdProperty);
-	    for (String group : ldapAllowedGroups) {
-		Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
-
-		if (result == null) {
-		    return false;
-		}
-
-		Attribute members = result.get("memberuid");
-
-		if (members == null) {
-		    return false;
-		}
-
-		return members.contains(username.toString());
-	    }
-	}
+        for (String groupName : user.getGroups()) {
+            if (groups.containsKey(groupName)) {
+                return true;
+            }
+        }
 
         return false;
     }
@@ -172,30 +248,29 @@ public class LdapUserManager implements UserManager {
 
             final Entry entry = result.get();
 
-            if (!isMemberOfAllowedGroups(connection, entry)) {
+            User user = createUserFromEntry(entry);
+            addGroupsToUser(user, entry, connection);
+
+            if (!isMemberOfAllowedGroups(user)) {
                 return false;
             }
 
             // Check if more than one user found
             return !result.next();
 
-        } catch (LdapException e) {
-            return false;
-        } catch (CursorException e) {
+        } catch (UserManagerException | LdapException | CursorException e) {
             return false;
         }
     }
 
     @Override
     public boolean validateGroup(String group) {
-        return ldapAllowedGroups.contains(group);
+        return groups.containsKey(group);
     }
 
     @Override
     public Role getRole(String roleName) {
-        Permission permission = new Permission();
-        permission.addPermissionsByName(roleName.toUpperCase());
-        return new Role(roleName, permission);
+        return roles.get(roleName);
     }
 
     @Override
