@@ -155,7 +155,7 @@ public class LdapUserManager implements UserManager {
             throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
         }
 
-        if (ldapUEmailProperty.length() > 0) {
+        if (!ldapUEmailProperty.isEmpty()) {
             emailAttribute = entry.get(ldapUEmailProperty);
         }
 
