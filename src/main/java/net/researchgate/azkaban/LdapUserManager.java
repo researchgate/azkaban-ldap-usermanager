@@ -258,11 +258,7 @@ public class LdapUserManager implements UserManager {
             // Check if more than one user found
             return !result.next();
 
-        } catch (UserManagerException e) {
-            return false;
-        } catch (LdapException e) {
-            return false;
-        } catch (CursorException e) {
+        } catch (UserManagerException | LdapException | CursorException e) {
             return false;
         }
     }
