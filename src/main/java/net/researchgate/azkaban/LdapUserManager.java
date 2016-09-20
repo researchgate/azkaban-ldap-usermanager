@@ -36,7 +36,7 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_GROUPS_FILE = "user.manager.ldap.groupsFile";
 
     private static final String USER_MEMBER_OF_ATTRIBUTE = "memberof";
-    private static final String GROUP_MEMBER_ATTRIBUTE = "memberuid";
+    private static final String GROUP_MEMBER_ATTRIBUTE = "memberof:1.2.840.113556.1.4.1941:";
 
     private String ldapHost;
     private int ldapPort;
@@ -168,9 +168,9 @@ public class LdapUserManager implements UserManager {
         return user;
     }
 
-    private void addGroupsToUser(User user, Entry userEntry, LdapConnection connection) throws LdapException {
+    private void addGroupsToUser(User user, Entry userEntry, LdapConnection connection) throws LdapException, CursorException {
         if (ldapEmbeddedGroups) {
-            for (String groupName: groups.keySet()) {
+            for (String groupName : groups.keySet()) {
 
                 String groupDN = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
                 Attribute groups = userEntry.get(USER_MEMBER_OF_ATTRIBUTE);
@@ -180,27 +180,19 @@ public class LdapUserManager implements UserManager {
                 }
             }
 
-            return;
-        }
+        } else {
+            for (String groupName : groups.keySet()) {
+                String groupDn = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
+                String searchDn = String.format(
+                        "(&(%s=%s)(%s=%s))",
+                        ldapUserIdProperty, user.getUserId(),
+                        GROUP_MEMBER_ATTRIBUTE, groupDn);
 
-        Attribute userDn = userEntry.get(ldapUserIdProperty);
+                EntryCursor result = connection.search(ldapUserBase, searchDn, SearchScope.SUBTREE);
 
-        for (String groupName: groups.keySet()) {
-            String groupDN = String.format("CN=%s,%s", groupName, ldapGroupSearchBase);
-            Entry result = connection.lookup(groupDN);
-
-            if (result == null) {
-                continue;
-            }
-
-            Attribute members = result.get(GROUP_MEMBER_ATTRIBUTE);
-
-            if (members == null) {
-                continue;
-            }
-
-            if (members.contains(userDn.toString())) {
-                user.addGroup(groupName);
+                if (result.next()) {
+                    user.addGroup(groupName);
+                }
             }
         }
     }
