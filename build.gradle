@@ -1,11 +1,11 @@
 apply plugin: 'java'
 apply plugin: 'maven'
 
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+sourceCompatibility = JavaVersion.VERSION_1_8
 
 repositories {
     mavenCentral()
+    maven { url "https://jitpack.io" }
 }
 
 configurations {
@@ -14,10 +14,10 @@ configurations {
 }
 
 dependencies {
-    provided group: 'com.linkedin.azkaban', name: 'azkaban', version: '2.5.0'
-    compile group: 'org.apache.directory.api', name: 'api-all', version: '1.0.0-M31'
+    provided 'com.github.azkaban:azkaban:3.5.0'
+    compile 'org.apache.directory.api:api-all:1.0.0-M31'
 
-    testCompile group: 'junit', name: 'junit', version: '4.8.+'
+    testCompile 'junit:junit:4.8.+'
 }
 
 jar {
