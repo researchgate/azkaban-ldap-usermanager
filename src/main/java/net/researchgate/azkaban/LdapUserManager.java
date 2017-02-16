@@ -91,7 +91,7 @@ public class LdapUserManager implements UserManager {
                 throw new UserManagerException("More than one user found");
             }
 
-            if (!isMemberOfAllowedGroups(connection, entry)) {
+            if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
                 throw new UserManagerException("User is not member of allowed groups");
             }
 
@@ -111,10 +111,10 @@ public class LdapUserManager implements UserManager {
                 user.setEmail(emailAttribute.getString());
             }
 
-            if (isMemberOfAdminGroups(connection, entry)) {
-            logger.info("User is admin; granting admin access");
+            if (isMemberOfGroups(connection, entry, ldapAdminGroups)) {
+                logger.info("Granting admin access to user: " + username);
                 user.addRole("admin");
-        }
+            }
 
             return user;
 
@@ -137,93 +137,60 @@ public class LdapUserManager implements UserManager {
         }
     }
 
-    private boolean isMemberOfAllowedGroups(LdapConnection connection, Entry user) throws CursorException, LdapException {
-        if (ldapAllowedGroups.size() == 0) {
-            return true;
-        }
-    if (ldapEmbeddedGroups) {
-        for (String groupName : ldapAllowedGroups) {
-                logger.info("This is group : " + groupName);
-        String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
-                logger.info("Going to search for " + goodGroup);
-        Attribute groups = user.get("memberof");
-        String memberships = user.get("memberof").toString();
-        logger.info("User is: " + memberships);
-        if (groups.contains(goodGroup)){
-                return true;
-        }
-
-        }
-        return false;
-    } else {
-        Attribute username = user.get(ldapUserIdProperty);
-        for (String group : ldapAllowedGroups) {
-        logger.info("This is group : " + group);
-        logger.info("Going to search CN=" + group + "," + ldapGroupSearchBase);
-        Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
-
-        if (result == null) {
-            return false;
-        }
-
-        Attribute members = result.get("memberuid");
-                logger.info("Got a result  ");
-        logger.info("Comparing " + username.toString() );
-
-        if (members == null) {
-            return false;
-        }
-        logger.info("going to return stuff");
-        return members.contains(username.toString());
-        }
-    }
-
-        return false;
-    }
-
-    private boolean isMemberOfAdminGroups(LdapConnection connection, Entry user) throws CursorException, LdapException {
-        if (ldapAdminGroups.size() == 0) {
+    /**
+     * @return true, when user is member of provided list of expectedGroups or if expectedGroups is empty; false, otherwise
+     */
+    private boolean isMemberOfGroups(LdapConnection connection, Entry user, List<String> expectedGroups) throws CursorException, LdapException {
+        if (expectedGroups.size() == 0) {
             return true;
         }
         if (ldapEmbeddedGroups) {
-            for (String groupName : ldapAdminGroups) {
-                logger.info("This is group : " + groupName);
-                String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
-                logger.info("Going to search for " + goodGroup);
-                Attribute groups = user.get("memberof");
-                String memberships = user.get("memberof").toString();
-                logger.info("User is: " + memberships);
-                if (groups.contains(goodGroup)){
-                            return true;
+            Attribute groups = user.get("memberof");
+            for (String expectedGroupName : expectedGroups) {
+                String expectedGroup = "CN=" + expectedGroupName + "," + ldapGroupSearchBase;
+                boolean isMember = groups.contains(expectedGroup);
+                logger.info("For group '" + expectedGroupName + "' " +
+                        "searched for '" + expectedGroup + "' " +
+                        "within user groups '" + groups.toString() + "'. " +
+                        "User is member: " + isMember);
+                if (isMember) {
+                    return true;
                 }
 
             }
             return false;
         } else {
-            Attribute username = user.get(ldapUserIdProperty);
-            for (String group : ldapAdminGroups) {
-                logger.info("This is group : " + group);
-                logger.info("Going to search CN=" + group + "," + ldapGroupSearchBase);
-                Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
+            Attribute usernameAttribute = user.get(ldapUserIdProperty);
+            String username = usernameAttribute.toString();
+            for (String expectedGroupName : expectedGroups) {
+                String expectedGroup = "CN=" + expectedGroupName + "," + ldapGroupSearchBase;
+                logger.info("For group '" + expectedGroupName + "' " +
+                        "looking up '" + expectedGroup + "'...");
+                Entry result = connection.lookup(expectedGroup);
 
                 if (result == null) {
+                    logger.info("Could not lookup group '" + expectedGroup + "'. Not checking further groups.");
                     return false;
                 }
 
                 Attribute members = result.get("memberuid");
-                logger.info("Got a result  ");
-                logger.info("Comparing " + username.toString() );
-
                 if (members == null) {
+                    logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
                     return false;
                 }
-                logger.info("going to return stuff");
-                return members.contains(username.toString());
-            }
-        }
 
-        return false;
+                boolean isMember = members.contains(username);
+                logger.info("Searched for username '" + username + "' " +
+                        "within group members of group '" + expectedGroupName + "'. " +
+                        "User is member: " + isMember);
+                if (isMember) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
+
     @Override
     public boolean validateUser(String username) {
         if (username == null || username.trim().isEmpty()) {
@@ -249,7 +216,7 @@ public class LdapUserManager implements UserManager {
 
             final Entry entry = result.get();
 
-            if (!isMemberOfAllowedGroups(connection, entry)) {
+            if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
                 return false;
             }
 
