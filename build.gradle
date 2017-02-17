@@ -13,6 +13,7 @@ configurations {
 dependencies {
     provided group: 'com.linkedin.azkaban', name: 'azkaban', version: '2.5.0'
     compile group: 'org.apache.directory.api', name: 'api-all', version: '1.0.0-M31'
+    compile group: 'log4j', name: 'log4j', version: '1.2.16'
 
     testCompile group: 'junit', name: 'junit', version: '4.8.+'
 }

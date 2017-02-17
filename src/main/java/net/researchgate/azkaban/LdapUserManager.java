@@ -11,10 +11,14 @@ import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 
+
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 import java.util.List;
 
 public class LdapUserManager implements UserManager {
+    final static Logger logger = Logger.getLogger(UserManager.class);
 
     public static final String LDAP_HOST = "user.manager.ldap.host";
     public static final String LDAP_PORT = "user.manager.ldap.port";
@@ -25,6 +29,7 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_BIND_ACCOUNT = "user.manager.ldap.bindAccount";
     public static final String LDAP_BIND_PASSWORD = "user.manager.ldap.bindPassword";
     public static final String LDAP_ALLOWED_GROUPS = "user.manager.ldap.allowedGroups";
+    public static final String LDAP_ADMIN_GROUPS = "user.manager.ldap.adminGroups";
     public static final String LDAP_GROUP_SEARCH_BASE = "user.manager.ldap.groupSearchBase";
     public static final String LDAP_EMBEDDED_GROUPS = "user.manager.ldap.embeddedGroups";
 
@@ -37,6 +42,7 @@ public class LdapUserManager implements UserManager {
     private String ldapBindAccount;
     private String ldapBindPassword;
     private List<String> ldapAllowedGroups;
+    private List<String> ldapAdminGroups;
     private String ldapGroupSearchBase;
     private boolean ldapEmbeddedGroups;
 
@@ -50,6 +56,7 @@ public class LdapUserManager implements UserManager {
         ldapBindAccount = props.getString(LDAP_BIND_ACCOUNT);
         ldapBindPassword = props.getString(LDAP_BIND_PASSWORD);
         ldapAllowedGroups = props.getStringList(LDAP_ALLOWED_GROUPS);
+        ldapAdminGroups = props.getStringList(LDAP_ADMIN_GROUPS);
         ldapGroupSearchBase = props.getString(LDAP_GROUP_SEARCH_BASE);
         ldapEmbeddedGroups = props.getBoolean(LDAP_EMBEDDED_GROUPS, false);
     }
@@ -62,9 +69,13 @@ public class LdapUserManager implements UserManager {
             throw new UserManagerException("Password is empty.");
         }
 
+        LdapConnection connection = null;
+        EntryCursor result = null;
+
         try {
-            LdapConnection connection = getLdapConnection();
-            EntryCursor result = connection.search(
+            connection = getLdapConnection();
+
+            result = connection.search(
                     ldapUserBase,
                     "(" + escapeLDAPSearchFilter(ldapUserIdProperty + "=" + username) + ")",
                     SearchScope.SUBTREE
@@ -80,7 +91,7 @@ public class LdapUserManager implements UserManager {
                 throw new UserManagerException("More than one user found");
             }
 
-            if (!isMemberOfAllowedGroups(connection, entry)) {
+            if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
                 throw new UserManagerException("User is not member of allowed groups");
             }
 
@@ -99,55 +110,85 @@ public class LdapUserManager implements UserManager {
             if (emailAttribute != null) {
                 user.setEmail(emailAttribute.getString());
             }
-            user.addRole("admin");
 
-            connection.unBind();
-            connection.close();
+            if (isMemberOfGroups(connection, entry, ldapAdminGroups)) {
+                logger.info("Granting admin access to user: " + username);
+                user.addRole("admin");
+            }
 
             return user;
+
         } catch (LdapException e) {
             throw new UserManagerException("LDAP error: " + e.getMessage(), e);
-        } catch (IOException e) {
-            throw new UserManagerException("IO error", e);
         } catch (CursorException e) {
             throw new UserManagerException("Cursor error", e);
         }
+        finally {
+            if (result != null)
+                result.close();
+
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch(IOException e) {
+                    throw new UserManagerException("IO error", e);
+                }
+            }
+        }
     }
 
-    private boolean isMemberOfAllowedGroups(LdapConnection connection, Entry user) throws CursorException, LdapException {
-        if (ldapAllowedGroups.size() == 0) {
+    /**
+     * @return true, when user is member of provided list of expectedGroups or if expectedGroups is empty; false, otherwise
+     */
+    private boolean isMemberOfGroups(LdapConnection connection, Entry user, List<String> expectedGroups) throws CursorException, LdapException {
+        if (expectedGroups.size() == 0) {
             return true;
         }
-	if (ldapEmbeddedGroups) {
-	    for (String groupName : ldapAllowedGroups) {
-		String goodGroup = "CN=" + groupName + "," + ldapGroupSearchBase;
-		Attribute groups = user.get("memberof");
-		if (groups.contains(goodGroup)){
-			    return true;
-		}
+        if (ldapEmbeddedGroups) {
+            Attribute groups = user.get("memberof");
+            for (String expectedGroupName : expectedGroups) {
+                String expectedGroup = "CN=" + expectedGroupName + "," + ldapGroupSearchBase;
+                boolean isMember = groups.contains(expectedGroup);
+                logger.info("For group '" + expectedGroupName + "' " +
+                        "searched for '" + expectedGroup + "' " +
+                        "within user groups '" + groups.toString() + "'. " +
+                        "User is member: " + isMember);
+                if (isMember) {
+                    return true;
+                }
 
-	    }
-	    return false;
-	} else {
-	    Attribute username = user.get(ldapUserIdProperty);
-	    for (String group : ldapAllowedGroups) {
-		Entry result = connection.lookup("CN=" + group + "," + ldapGroupSearchBase);
+            }
+            return false;
+        } else {
+            Attribute usernameAttribute = user.get(ldapUserIdProperty);
+            String username = usernameAttribute.toString();
+            for (String expectedGroupName : expectedGroups) {
+                String expectedGroup = "CN=" + expectedGroupName + "," + ldapGroupSearchBase;
+                logger.info("For group '" + expectedGroupName + "' " +
+                        "looking up '" + expectedGroup + "'...");
+                Entry result = connection.lookup(expectedGroup);
 
-		if (result == null) {
-		    return false;
-		}
+                if (result == null) {
+                    logger.info("Could not lookup group '" + expectedGroup + "'. Not checking further groups.");
+                    return false;
+                }
 
-		Attribute members = result.get("memberuid");
+                Attribute members = result.get("memberuid");
+                if (members == null) {
+                    logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
+                    return false;
+                }
 
-		if (members == null) {
-		    return false;
-		}
-
-		return members.contains(username.toString());
-	    }
-	}
-
-        return false;
+                boolean isMember = members.contains(username);
+                logger.info("Searched for username '" + username + "' " +
+                        "within group members of group '" + expectedGroupName + "'. " +
+                        "User is member: " + isMember);
+                if (isMember) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     @Override
@@ -156,10 +197,13 @@ public class LdapUserManager implements UserManager {
             return false;
         }
 
-        try {
-            LdapConnection connection = getLdapConnection();
+        LdapConnection connection = null;
+        EntryCursor result = null;
 
-            EntryCursor result = connection.search(
+        try {
+            connection = getLdapConnection();
+
+            result = connection.search(
                     ldapUserBase,
                     "(" + escapeLDAPSearchFilter(ldapUserIdProperty + "=" + username) + ")",
                     SearchScope.SUBTREE
@@ -172,7 +216,7 @@ public class LdapUserManager implements UserManager {
 
             final Entry entry = result.get();
 
-            if (!isMemberOfAllowedGroups(connection, entry)) {
+            if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
                 return false;
             }
 
@@ -183,6 +227,17 @@ public class LdapUserManager implements UserManager {
             return false;
         } catch (CursorException e) {
             return false;
+        } finally {
+            if (result != null)
+                result.close();
+
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch(IOException e) {
+                    return false;
+                }
+            }
         }
     }
 
