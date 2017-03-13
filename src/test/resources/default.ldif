@@ -16,3 +16,9 @@ cn: Carl Friedrich Gauss
 cn:: Q2FybCBGcmllZHJpY2ggR2F1c3M=
 sn: Gauss
 mail: gauss@ldap.example.com
+
+dn: cn=svc-test,dc=example,dc=com
+objectClass: top
+objectClass: posixGroup
+cn: svc-test
+memberUid: gauss

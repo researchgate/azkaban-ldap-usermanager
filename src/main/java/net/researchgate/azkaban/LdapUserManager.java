@@ -6,6 +6,7 @@ import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.entry.Entry;
+import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
@@ -161,7 +162,17 @@ public class LdapUserManager implements UserManager {
             return false;
         } else {
             Attribute usernameAttribute = user.get(ldapUserIdProperty);
-            String username = usernameAttribute.toString();
+            if (usernameAttribute == null) {
+                logger.info("Could not extract attribute '" + ldapUserIdProperty + "' for entry '" + user + "'. Not checking further groups.");
+                return false;
+            }
+            Value usernameValue = usernameAttribute.get();
+            if (usernameValue == null) {
+                logger.info("Could not extract value of attribute '" + ldapUserIdProperty + "' for entry '" + user + "'. Not checking further groups.");
+                return false;
+            }
+
+            String username = usernameValue.getString();
             for (String expectedGroupName : expectedGroups) {
                 String expectedGroup = "CN=" + expectedGroupName + "," + ldapGroupSearchBase;
                 logger.info("For group '" + expectedGroupName + "' " +

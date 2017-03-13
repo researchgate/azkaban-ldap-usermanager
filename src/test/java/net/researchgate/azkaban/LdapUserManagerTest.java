@@ -22,6 +22,7 @@ public class LdapUserManagerTest {
     public EmbeddedLdapRule embeddedLdapRule = EmbeddedLdapRuleBuilder
             .newInstance()
             .usingDomainDsn("dc=example,dc=com")
+            .withSchema("custom-schema.ldif")
             .importingLdifs("default.ldif")
             .bindingToPort(11389)
             .usingBindDSN("cn=read-only-admin,dc=example,dc=com")
@@ -54,6 +55,18 @@ public class LdapUserManagerTest {
     @Test
     public void testGetUser() throws Exception {
         User user = userManager.getUser("gauss", "password");
+
+        assertEquals("gauss", user.getUserId());
+        assertEquals("gauss@ldap.example.com", user.getEmail());
+    }
+
+    @Test
+    public void testGetUserWithAllowedGroup() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test");
+        final LdapUserManager manager = new LdapUserManager(props);
+
+        User user = manager.getUser("gauss", "password");
 
         assertEquals("gauss", user.getUserId());
         assertEquals("gauss@ldap.example.com", user.getEmail());
