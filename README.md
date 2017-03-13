@@ -50,3 +50,17 @@ Some LDAP schemas return the list of groups to which a DN belongs as a
 <List>memberOf attribute.  To use that group list, set
 ```user.manager.ldap.embeddedGroups=true```.  Note: the lookup will be
 case-sensitive.
+
+Release new version
+-------------------
+To release a new version you need to set the property "githubToken" in your "gradle.proeprties" inside your gradle home directory that is usually "~/.gradle/".
+If the "gradle.properties" file doesn't exists you need to create it.
+
+The token can be created under https://github.com/settings/tokens. And an example of the config is like:
+
+![Github Token example config](https://github.com/researchgate/azkaban-ldap-usermanager/raw/master/doc/github_token_settings.png)
+
+If this is done you can run the release task in gradle.
+```
+    gradle release
+```

@@ -1,5 +1,6 @@
 plugins {
     id 'com.github.johnrengelman.shadow' version '1.2.4'
+    id 'net.researchgate.release' version '2.5.0'
     id 'co.riiid.gradle' version '0.4.2'
     id 'java'
     id 'maven'
@@ -55,4 +56,13 @@ githubRelease {
     }
 }
 
+release {
+    git {
+        requireBranch = '(master|\\d+\\.\\d+)'
+    }
+}
+
 build.dependsOn(shadowJar);
+
+release.buildTasks = ["build"];
+afterReleaseBuild.dependsOn githubRelease
