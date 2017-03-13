@@ -1,32 +1,36 @@
-apply plugin: 'java'
-apply plugin: 'maven'
-apply plugin: 'idea'
+plugins {
+    id 'com.github.johnrengelman.shadow' version '1.2.4'
+    id 'java'
+    id 'maven'
+    id 'idea'
+}
 
 sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+    maven {
+        url "https://jitpack.io"
+    }
 }
 
-configurations {
-    provided
-    compile.extendsFrom provided
+shadowJar {
+    relocate 'org.apache.mina', 'shadow_2_0_9.org.apache.mina'
 }
+
+jar.enabled = false
 
 dependencies {
-    provided group: 'com.linkedin.azkaban', name: 'azkaban', version: '2.5.0'
+    compileOnly group: 'com.github.azkaban', name: 'azkaban', version: '3.16.0'
     compile group: 'org.apache.directory.api', name: 'api-all', version: '1.0.0-M31'
-    compile group: 'log4j', name: 'log4j', version: '1.2.16'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'org.zapodot', name: 'embedded-ldap-junit', version: '0.5.2'
+    testCompile group: 'com.github.azkaban', name: 'azkaban', version: '3.16.0'
 }
 
-jar {
-    dependsOn configurations.runtime
-    from {
-        (configurations.runtime - configurations.provided).collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
-    }
+artifacts {
+    shadowJar;
 }
+
+build.dependsOn(shadowJar);
