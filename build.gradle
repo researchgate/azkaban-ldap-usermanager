@@ -1,5 +1,6 @@
 plugins {
     id 'com.github.johnrengelman.shadow' version '1.2.4'
+    id 'co.riiid.gradle' version '0.4.2'
     id 'java'
     id 'maven'
     id 'idea'
@@ -16,6 +17,7 @@ repositories {
 
 shadowJar {
     relocate 'org.apache.mina', 'shadow_2_0_9.org.apache.mina'
+    classifier = null
 }
 
 jar.enabled = false
@@ -29,8 +31,28 @@ dependencies {
     testCompile group: 'com.github.azkaban', name: 'azkaban', version: '3.16.0'
 }
 
+github {
+    owner = 'researchgate'
+    repo = 'azkaban-ldap-usermanager'
+    token = project.hasProperty('githubToken') ? githubToken : 'Set token'
+    tagName = project.version
+    targetCommitish = 'master'
+    name = 'v' + project.version
+    assets = [
+        shadowJar.getArchivePath()
+    ]
+}
+
 artifacts {
     shadowJar;
+}
+
+githubRelease {
+    doFirst {
+        if (!project.hasProperty('githubToken')) {
+            throw new Exception("No github token is set!")
+        }
+    }
 }
 
 build.dependsOn(shadowJar);
