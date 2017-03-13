@@ -16,7 +16,7 @@ Build the plugin
 gradle build
 ```
 
-and place the created jar from ./build/libs into the ./extlib folder of Azkaban (see also http://azkaban.github.io/azkaban/docs/2.5/#custom-usermanager) for details.
+and place the created jar from ./build/libs into the ./extlib folder of Azkaban (see also http://azkaban.github.io/azkaban/docs/latest/#custom-usermanager) for details.
 
 In your azkaban.properties file set the UserManager to the new Ldap one:
 
