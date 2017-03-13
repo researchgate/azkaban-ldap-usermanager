@@ -66,3 +66,4 @@ build.dependsOn(shadowJar);
 
 release.buildTasks = ["build"];
 afterReleaseBuild.dependsOn githubRelease
+createReleaseTag.enabled = false
