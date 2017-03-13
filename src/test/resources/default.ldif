@@ -1,0 +1,18 @@
+version: 1
+
+dn: dc=example,dc=com
+objectClass: domain
+objectClass: top
+dc: example
+
+dn: uid=Carl Friedrich Gauss,dc=example,dc=com
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+uid: gauss
+userPassword: password
+cn: Carl Friedrich Gauss
+cn:: Q2FybCBGcmllZHJpY2ggR2F1c3M=
+sn: Gauss
+mail: gauss@ldap.example.com

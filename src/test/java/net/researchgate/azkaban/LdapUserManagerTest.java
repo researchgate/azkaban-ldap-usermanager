@@ -8,6 +8,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.zapodot.junit.ldap.EmbeddedLdapRule;
+import org.zapodot.junit.ldap.EmbeddedLdapRuleBuilder;
 
 import static org.junit.Assert.*;
 
@@ -15,6 +17,16 @@ public class LdapUserManagerTest {
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
+
+    @Rule
+    public EmbeddedLdapRule embeddedLdapRule = EmbeddedLdapRuleBuilder
+            .newInstance()
+            .usingDomainDsn("dc=example,dc=com")
+            .importingLdifs("default.ldif")
+            .bindingToPort(11389)
+            .usingBindDSN("cn=read-only-admin,dc=example,dc=com")
+            .usingBindCredentials("password")
+            .build();
 
     private LdapUserManager userManager;
 
@@ -26,8 +38,8 @@ public class LdapUserManagerTest {
 
     private Props getProps() {
         Props props = new Props();
-        props.put(LdapUserManager.LDAP_HOST, "ldap.forumsys.com");
-        props.put(LdapUserManager.LDAP_PORT, "389");
+        props.put(LdapUserManager.LDAP_HOST, "localhost");
+        props.put(LdapUserManager.LDAP_PORT, "11389");
         props.put(LdapUserManager.LDAP_USE_SSL, "false");
         props.put(LdapUserManager.LDAP_USER_BASE, "dc=example,dc=com");
         props.put(LdapUserManager.LDAP_USERID_PROPERTY, "uid");
@@ -44,7 +56,7 @@ public class LdapUserManagerTest {
         User user = userManager.getUser("gauss", "password");
 
         assertEquals("gauss", user.getUserId());
-        assertEquals("gauss@ldap.forumsys.com", user.getEmail());
+        assertEquals("gauss@ldap.example.com", user.getEmail());
     }
 
     @Test
