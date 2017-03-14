@@ -10,12 +10,14 @@ objectclass: top
 objectclass: person
 objectclass: organizationalPerson
 objectclass: inetOrgPerson
+objectclass: mockGroupOfNamesOverlay
 uid: gauss
 userPassword: password
 cn: Carl Friedrich Gauss
 cn:: Q2FybCBGcmllZHJpY2ggR2F1c3M=
 sn: Gauss
 mail: gauss@ldap.example.com
+memberOf: cn=svc-test,dc=example,dc=com
 
 dn: cn=svc-test,dc=example,dc=com
 objectClass: top

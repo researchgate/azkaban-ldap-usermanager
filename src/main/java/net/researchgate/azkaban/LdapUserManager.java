@@ -149,7 +149,7 @@ public class LdapUserManager implements UserManager {
             Attribute groups = user.get("memberof");
             for (String expectedGroupName : expectedGroups) {
                 String expectedGroup = "CN=" + expectedGroupName + "," + ldapGroupSearchBase;
-                boolean isMember = groups.contains(expectedGroup);
+                final boolean isMember = attributeContainsNormalized(expectedGroup, groups);
                 logger.info("For group '" + expectedGroupName + "' " +
                         "searched for '" + expectedGroup + "' " +
                         "within user groups '" + groups.toString() + "'. " +
@@ -157,7 +157,6 @@ public class LdapUserManager implements UserManager {
                 if (isMember) {
                     return true;
                 }
-
             }
             return false;
         } else {
@@ -200,6 +199,25 @@ public class LdapUserManager implements UserManager {
             }
             return false;
         }
+    }
+
+    /**
+     * Tests if the attribute contains a given value (case insensitive)
+     *
+     * @param expected the expected value
+     * @param attribute the attribute encapsulating a list of values
+     * @return a value indicating if the attribute contains a value which matches expected
+     */
+    private boolean attributeContainsNormalized(String expected, Attribute attribute) {
+        if (expected == null) {
+            return false;
+        }
+        for (Value value : attribute) {
+            if (value.toString().toLowerCase().equals(expected.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

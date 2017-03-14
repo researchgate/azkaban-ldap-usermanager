@@ -73,6 +73,19 @@ public class LdapUserManagerTest {
     }
 
     @Test
+    public void testGetUserWithEmbeddedGroup() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test");
+        props.put(LdapUserManager.LDAP_EMBEDDED_GROUPS, "true");
+        final LdapUserManager manager = new LdapUserManager(props);
+
+        User user = manager.getUser("gauss", "password");
+
+        assertEquals("gauss", user.getUserId());
+        assertEquals("gauss@ldap.example.com", user.getEmail());
+    }
+
+    @Test
     public void testGetUserWithInvalidPasswordThrowsUserManagerException() throws Exception {
         thrown.expect(UserManagerException.class);
         userManager.getUser("gauss", "invalid");
