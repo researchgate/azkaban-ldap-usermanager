@@ -8,6 +8,7 @@ import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
+import org.apache.directory.api.ldap.model.filter.FilterEncoder;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
@@ -294,32 +295,9 @@ public class LdapUserManager implements UserManager {
     }
 
     /**
-     * Taken from https://www.owasp.org/index.php/Preventing_LDAP_Injection_in_Java
+     * See also https://www.owasp.org/index.php/Preventing_LDAP_Injection_in_Java
      */
-    public String escapeLDAPSearchFilter(String filter) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < filter.length(); i++) {
-            char curChar = filter.charAt(i);
-            switch (curChar) {
-                case '\\':
-                    sb.append("\\5c");
-                    break;
-                case '*':
-                    sb.append("\\2a");
-                    break;
-                case '(':
-                    sb.append("\\28");
-                    break;
-                case ')':
-                    sb.append("\\29");
-                    break;
-                case '\u0000':
-                    sb.append("\\00");
-                    break;
-                default:
-                    sb.append(curChar);
-            }
-        }
-        return sb.toString();
+    static String escapeLDAPSearchFilter(String filter) {
+        return FilterEncoder.encodeFilterValue(filter);
     }
 }

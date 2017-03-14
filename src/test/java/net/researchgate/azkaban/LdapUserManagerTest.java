@@ -145,7 +145,7 @@ public class LdapUserManagerTest {
 
     @Test
     public void testEscapeLDAPSearchFilter() throws Exception {
-        assertEquals("No special characters to escape", "Hi This is a test #çà", userManager.escapeLDAPSearchFilter("Hi This is a test #çà"));
-        assertEquals("LDAP Christams Tree", "Hi \\28This\\29 = is \\2a a \\5c test # ç à ô", userManager.escapeLDAPSearchFilter("Hi (This) = is * a \\ test # ç à ô"));
+        assertEquals("No special characters to escape", "Hi This is a test #çà", LdapUserManager.escapeLDAPSearchFilter("Hi This is a test #çà"));
+        assertEquals("LDAP Christams Tree", "Hi \\28This\\29 = is \\2A a \\5C test # ç à ô", LdapUserManager.escapeLDAPSearchFilter("Hi (This) = is * a \\ test # ç à ô"));
     }
 }
