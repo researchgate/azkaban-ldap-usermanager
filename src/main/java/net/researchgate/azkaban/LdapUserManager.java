@@ -26,7 +26,7 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_PORT = "user.manager.ldap.port";
     public static final String LDAP_USE_SSL = "user.manager.ldap.useSsl";
     public static final String LDAP_USER_BASE = "user.manager.ldap.userBase";
-    public static final String LDAP_USERID_PROPERTY = "user.manager.ldap.userIdProperty";
+    public static final String LDAP_USER_ID_PROPERTY = "user.manager.ldap.userIdProperty";
     public static final String LDAP_EMAIL_PROPERTY = "user.manager.ldap.emailProperty";
     public static final String LDAP_BIND_ACCOUNT = "user.manager.ldap.bindAccount";
     public static final String LDAP_BIND_PASSWORD = "user.manager.ldap.bindPassword";
@@ -34,6 +34,10 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_ADMIN_GROUPS = "user.manager.ldap.adminGroups";
     public static final String LDAP_GROUP_SEARCH_BASE = "user.manager.ldap.groupSearchBase";
     public static final String LDAP_EMBEDDED_GROUPS = "user.manager.ldap.embeddedGroups";
+
+    // Support local salt account for admin privileges
+    public static final String LOCAL_SALT_ACCOUNT = "user.manager.salt.account";
+    public static final String LOCAL_SALT_PASSWORD = "user.manager.salt.password";
 
     private String ldapHost;
     private int ldapPort;
@@ -48,12 +52,16 @@ public class LdapUserManager implements UserManager {
     private String ldapGroupSearchBase;
     private boolean ldapEmbeddedGroups;
 
+    // Support local salt account for admin privileges
+    private String localSaltAccount;
+    private String localSaltPassword;
+
     public LdapUserManager(Props props) {
         ldapHost = props.getString(LDAP_HOST);
         ldapPort = props.getInt(LDAP_PORT);
         useSsl = props.getBoolean(LDAP_USE_SSL);
         ldapUserBase = props.getString(LDAP_USER_BASE);
-        ldapUserIdProperty = props.getString(LDAP_USERID_PROPERTY);
+        ldapUserIdProperty = props.getString(LDAP_USER_ID_PROPERTY);
         ldapUEmailProperty = props.getString(LDAP_EMAIL_PROPERTY);
         ldapBindAccount = props.getString(LDAP_BIND_ACCOUNT);
         ldapBindPassword = props.getString(LDAP_BIND_PASSWORD);
@@ -61,6 +69,9 @@ public class LdapUserManager implements UserManager {
         ldapAdminGroups = props.getStringList(LDAP_ADMIN_GROUPS);
         ldapGroupSearchBase = props.getString(LDAP_GROUP_SEARCH_BASE);
         ldapEmbeddedGroups = props.getBoolean(LDAP_EMBEDDED_GROUPS, false);
+        // Support local salt account for admin privileges
+        localSaltAccount = props.getString(LOCAL_SALT_ACCOUNT);
+        localSaltPassword = props.getString(LOCAL_SALT_PASSWORD);
     }
 
     @Override
@@ -69,6 +80,14 @@ public class LdapUserManager implements UserManager {
             throw new UserManagerException("Username is empty.");
         } else if (password == null || password.trim().isEmpty()) {
             throw new UserManagerException("Password is empty.");
+        }
+
+        // Support local salt account for admin privileges
+        if (username.trim().equals(localSaltAccount) && password.trim().equals(localSaltPassword)) {
+            User user = new User(username.trim());
+            logger.info("Granting admin access to salt user: " + username);
+            user.addRole("admin");
+            return user;
         }
 
         LdapConnection connection = null;
@@ -89,6 +108,7 @@ public class LdapUserManager implements UserManager {
 
             final Entry entry = result.get();
 
+            // FIXME: Our LDAP returns user twice
             if (result.next()) {
                 throw new UserManagerException("More than one user found");
             }
@@ -124,15 +144,14 @@ public class LdapUserManager implements UserManager {
             throw new UserManagerException("LDAP error: " + e.getMessage(), e);
         } catch (CursorException e) {
             throw new UserManagerException("Cursor error", e);
-        }
-        finally {
+        } finally {
             if (result != null)
                 result.close();
 
             if (connection != null) {
                 try {
                     connection.close();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     throw new UserManagerException("IO error", e);
                 }
             }
@@ -205,7 +224,7 @@ public class LdapUserManager implements UserManager {
     /**
      * Tests if the attribute contains a given value (case insensitive)
      *
-     * @param expected the expected value
+     * @param expected  the expected value
      * @param attribute the attribute encapsulating a list of values
      * @return a value indicating if the attribute contains a value which matches expected
      */
@@ -227,6 +246,11 @@ public class LdapUserManager implements UserManager {
             return false;
         }
 
+        // Support local salt account for admin privileges
+        if (username.trim().equals(localSaltAccount)) {
+            return true;
+        }
+
         LdapConnection connection = null;
         EntryCursor result = null;
 
@@ -240,6 +264,7 @@ public class LdapUserManager implements UserManager {
             );
 
             if (!result.next()) {
+                logger.info("User doesn't exist");
                 return false;
             }
 
@@ -247,9 +272,10 @@ public class LdapUserManager implements UserManager {
             final Entry entry = result.get();
 
             if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
+                logger.info("User is not in allowed groups" + ldapAllowedGroups);
                 return false;
             }
-
+            // FIXME: Our LDAP returns user twice
             // Check if more than one user found
             return !result.next();
 
@@ -264,7 +290,7 @@ public class LdapUserManager implements UserManager {
             if (connection != null) {
                 try {
                     connection.close();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     return false;
                 }
             }

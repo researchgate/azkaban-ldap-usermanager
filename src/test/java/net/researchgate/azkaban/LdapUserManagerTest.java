@@ -43,12 +43,15 @@ public class LdapUserManagerTest {
         props.put(LdapUserManager.LDAP_PORT, "11389");
         props.put(LdapUserManager.LDAP_USE_SSL, "false");
         props.put(LdapUserManager.LDAP_USER_BASE, "dc=example,dc=com");
-        props.put(LdapUserManager.LDAP_USERID_PROPERTY, "uid");
+        props.put(LdapUserManager.LDAP_USER_ID_PROPERTY, "uid");
         props.put(LdapUserManager.LDAP_EMAIL_PROPERTY, "mail");
         props.put(LdapUserManager.LDAP_BIND_ACCOUNT, "cn=read-only-admin,dc=example,dc=com");
         props.put(LdapUserManager.LDAP_BIND_PASSWORD, "password");
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "");
         props.put(LdapUserManager.LDAP_GROUP_SEARCH_BASE, "dc=example,dc=com");
+        // Support local salt account for admin privileges
+        props.put(LdapUserManager.LOCAL_SALT_ACCOUNT, "salt");
+        props.put(LdapUserManager.LOCAL_SALT_PASSWORD, "password");
         return props;
     }
 
@@ -138,7 +141,7 @@ public class LdapUserManagerTest {
         thrown.expect(UserManagerException.class);
 
         Props props = getProps();
-        props.put(LdapUserManager.LDAP_USERID_PROPERTY, "invalidField");
+        props.put(LdapUserManager.LDAP_USER_ID_PROPERTY, "invalidField");
         userManager = new LdapUserManager(props);
         userManager.getUser("gauss", "password");
     }
