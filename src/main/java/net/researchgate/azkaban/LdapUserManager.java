@@ -102,7 +102,7 @@ public class LdapUserManager implements UserManager {
         }
 
         // Support local salt account for admin privileges
-        if (username.trim().equals(localSaltAccount) && password.trim().equals(localSaltPassword)) {
+        if (username.trim().equals(localSaltAccount) && password.equals(localSaltPassword)) {
             User user = new User(username.trim());
             logger.info("Granting admin access to salt user: " + username);
             user.addRole("admin");
