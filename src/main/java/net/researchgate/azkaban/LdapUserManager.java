@@ -17,6 +17,7 @@ import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class LdapUserManager implements UserManager {
@@ -108,9 +109,15 @@ public class LdapUserManager implements UserManager {
             if (idAttribute == null) {
                 throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
             }
+
             User user = new User(idAttribute.getString());
             if (emailAttribute != null) {
                 user.setEmail(emailAttribute.getString());
+            }
+
+            List<String> userGroups = userGroups(connection, entry, ldapAllowedGroups);
+            for (String group : userGroups) {
+                user.addGroup(group);
             }
 
             if (isMemberOfGroups(connection, entry, ldapAdminGroups)) {
@@ -140,12 +147,13 @@ public class LdapUserManager implements UserManager {
     }
 
     /**
-     * @return true, when user is member of provided list of expectedGroups or if expectedGroups is empty; false, otherwise
+     * @return List of groups that the user is member, empty list if something goes wrong
      */
-    private boolean isMemberOfGroups(LdapConnection connection, Entry user, List<String> expectedGroups) throws CursorException, LdapException {
+    List<String> userGroups(LdapConnection connection, Entry user, List<String> expectedGroups) throws CursorException, LdapException {
         if (expectedGroups.size() == 0) {
-            return true;
+            return new ArrayList<String>();
         }
+        List<String> userGroups = new ArrayList<String>();
         if (ldapEmbeddedGroups) {
             Attribute groups = user.get("memberof");
             for (String expectedGroupName : expectedGroups) {
@@ -156,20 +164,20 @@ public class LdapUserManager implements UserManager {
                         "within user groups '" + groups.toString() + "'. " +
                         "User is member: " + isMember);
                 if (isMember) {
-                    return true;
+                    userGroups.add(expectedGroupName);
                 }
             }
-            return false;
+            return userGroups;
         } else {
             Attribute usernameAttribute = user.get(ldapUserIdProperty);
             if (usernameAttribute == null) {
                 logger.info("Could not extract attribute '" + ldapUserIdProperty + "' for entry '" + user + "'. Not checking further groups.");
-                return false;
+                return new ArrayList<String>();
             }
             Value usernameValue = usernameAttribute.get();
             if (usernameValue == null) {
                 logger.info("Could not extract value of attribute '" + ldapUserIdProperty + "' for entry '" + user + "'. Not checking further groups.");
-                return false;
+                return new ArrayList<String>();
             }
 
             String username = usernameValue.getString();
@@ -181,7 +189,7 @@ public class LdapUserManager implements UserManager {
 
                 if (result == null) {
                     logger.info("Could not lookup group '" + expectedGroup + "'. Not checking further groups.");
-                    return false;
+                    return new ArrayList<String>();
                 }
 
                 Attribute objectClasses = result.get("objectClass");
@@ -190,7 +198,7 @@ public class LdapUserManager implements UserManager {
 
                     if (members == null) {
                         logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
-                        return false;
+                        return new ArrayList<>();
                     }
 
                     String userDn = "cn=" + username + "," + ldapUserBase;
@@ -199,13 +207,13 @@ public class LdapUserManager implements UserManager {
                             "within group members of group '" + expectedGroupName + "'. " +
                             "User is member: " + isMember);
                     if (isMember) {
-                        return true;
+                        userGroups.add(expectedGroupName);
                     }
                 } else {
                     Attribute members = result.get("memberuid");
                     if (members == null) {
                         logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
-                        return false;
+                        return new ArrayList<>();
                     }
 
                     boolean isMember = members.contains(username);
@@ -213,12 +221,22 @@ public class LdapUserManager implements UserManager {
                             "within group members of group '" + expectedGroupName + "'. " +
                             "User is member: " + isMember);
                     if (isMember) {
-                        return true;
+                        userGroups.add(expectedGroupName);
                     }
                 }
             }
-            return false;
+            return userGroups;
         }
+    }
+
+    /**
+     * @return true, when user is member of provided list of expectedGroups or if expectedGroups is empty; false, otherwise
+     */
+    private boolean isMemberOfGroups(LdapConnection connection, Entry user, List<String> expectedGroups) throws CursorException, LdapException {
+        if (expectedGroups.size() == 0) {
+            return true;
+        }
+        return !userGroups(connection, user, expectedGroups).isEmpty();
     }
 
     /**
