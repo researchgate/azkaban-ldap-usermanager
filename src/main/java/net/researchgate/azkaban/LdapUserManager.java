@@ -181,15 +181,15 @@ public class LdapUserManager implements UserManager {
         } catch (CursorException e) {
             throw new UserManagerException("Cursor error", e);
         } finally {
-            if (cursor != null)
-                cursor.close();
+            try {
+                if (cursor != null)
+                    cursor.close();
 
-            if (connection != null) {
-                try {
+                if (connection != null) {
                     connection.close();
-                } catch (IOException e) {
-                    throw new UserManagerException("IO error", e);
                 }
+            } catch (IOException e) {
+                throw new UserManagerException("IO error", e);
             }
         }
     }
@@ -385,15 +385,15 @@ public class LdapUserManager implements UserManager {
         } catch (UserManagerException e) {
             return false;
         } finally {
-            if (cursor != null)
-                cursor.close();
+            try {
+                if (cursor != null)
+                    cursor.close();
 
-            if (connection != null) {
-                try {
+                if (connection != null) {
                     connection.close();
-                } catch (IOException e) {
-                    return false;
                 }
+            } catch (IOException e) {
+                return false;
             }
         }
     }
