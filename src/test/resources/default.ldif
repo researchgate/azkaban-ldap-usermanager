@@ -24,3 +24,9 @@ objectClass: top
 objectClass: posixGroup
 cn: svc-test
 memberUid: gauss
+
+dn: cn=svc-test2,dc=example,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: svc-test2
+member: cn=gauss,dc=example,dc=com
