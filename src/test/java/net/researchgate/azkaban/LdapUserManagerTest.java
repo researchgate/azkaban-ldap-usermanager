@@ -73,6 +73,19 @@ public class LdapUserManagerTest {
     }
 
     @Test
+    public void testGetUserWithAllowedGroupThatGroupOfNames() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test2");
+        final LdapUserManager manager = new LdapUserManager(props);
+
+        User user = manager.getUser("gauss", "password");
+
+        assertEquals("gauss", user.getUserId());
+        assertEquals("gauss@ldap.example.com", user.getEmail());
+    }
+
+
+    @Test
     public void testGetUserWithEmbeddedGroup() throws Exception {
         Props props = getProps();
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test");

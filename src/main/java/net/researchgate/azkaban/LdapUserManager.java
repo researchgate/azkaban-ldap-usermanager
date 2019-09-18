@@ -184,18 +184,37 @@ public class LdapUserManager implements UserManager {
                     return false;
                 }
 
-                Attribute members = result.get("memberuid");
-                if (members == null) {
-                    logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
-                    return false;
-                }
+                Attribute objectClasses = result.get("objectClass");
+                if(objectClasses != null && objectClasses.contains("groupOfNames")) {
+                    Attribute members = result.get("member");
 
-                boolean isMember = members.contains(username);
-                logger.info("Searched for username '" + username + "' " +
-                        "within group members of group '" + expectedGroupName + "'. " +
-                        "User is member: " + isMember);
-                if (isMember) {
-                    return true;
+                    if (members == null) {
+                        logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
+                        return false;
+                    }
+
+                    String userDn = "cn=" + username + "," + ldapUserBase;
+                    boolean isMember = members.contains(userDn);
+                    logger.info("Searched for userDn '" + userDn + "' " +
+                            "within group members of group '" + expectedGroupName + "'. " +
+                            "User is member: " + isMember);
+                    if (isMember) {
+                        return true;
+                    }
+                } else {
+                    Attribute members = result.get("memberuid");
+                    if (members == null) {
+                        logger.info("Could not get members of group '" + expectedGroup + "'. Not checking further groups.");
+                        return false;
+                    }
+
+                    boolean isMember = members.contains(username);
+                    logger.info("Searched for username '" + username + "' " +
+                            "within group members of group '" + expectedGroupName + "'. " +
+                            "User is member: " + isMember);
+                    if (isMember) {
+                        return true;
+                    }
                 }
             }
             return false;
