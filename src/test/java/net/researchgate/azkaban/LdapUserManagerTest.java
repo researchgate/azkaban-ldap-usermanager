@@ -61,6 +61,33 @@ public class LdapUserManagerTest {
     }
 
     @Test
+    public void testGetUserGroups() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test,ufrj-test");
+        final LdapUserManager manager = new LdapUserManager(props);
+
+        User user = manager.getUser("gauss", "password");
+
+        assertEquals("gauss", user.getUserId());
+        assertTrue(user.getGroups().contains("svc-test"));
+        assertFalse(user.getGroups().contains("ufrj-test"));
+    }
+
+    @Test
+    public void testGetUserGroupsWithEmbeddedGroup() throws Exception {
+        Props props = getProps();
+        props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test,ufrj-test");
+        props.put(LdapUserManager.LDAP_EMBEDDED_GROUPS, "true");
+        final LdapUserManager manager = new LdapUserManager(props);
+
+        User user = manager.getUser("gauss", "password");
+
+        assertEquals("gauss", user.getUserId());
+        assertTrue(user.getGroups().contains("svc-test"));
+        assertFalse(user.getGroups().contains("ufrj-test"));
+    }
+
+    @Test
     public void testGetUserWithAllowedGroup() throws Exception {
         Props props = getProps();
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test");

@@ -30,3 +30,9 @@ objectClass: top
 objectClass: groupOfNames
 cn: svc-test2
 member: cn=gauss,dc=example,dc=com
+
+dn: cn=ufrj-test,dc=example,dc=com
+objectClass: top
+objectClass: posixGroup
+cn: svc-test
+memberUid: bessel
