@@ -308,8 +308,14 @@ public class LdapUserManager implements UserManager {
     }
 
     private LdapConnection getLdapConnection() throws LdapException {
-        LdapConnection connection = new LdapNetworkConnection(ldapHost, ldapPort, useSsl);
-        connection.bind(ldapBindAccount, ldapBindPassword);
+        LdapNetworkConnection connection = new LdapNetworkConnection(ldapHost, ldapPort, useSsl);
+	if (useSsl == false) {
+            connection.connect();
+            connection.startTls();
+            connection.bind(ldapBindAccount, ldapBindPassword);
+	} else {
+            connection.bind(ldapBindAccount, ldapBindPassword);
+	}
         return connection;
     }
 
