@@ -4,6 +4,7 @@ import azkaban.user.Role;
 import azkaban.user.User;
 import azkaban.user.UserManagerException;
 import azkaban.utils.Props;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,20 +52,47 @@ public class LdapUserManagerTest {
         props.put(LdapUserManager.LDAP_BIND_ACCOUNT, "cn=read-only-admin,dc=example,dc=com");
         props.put(LdapUserManager.LDAP_BIND_PASSWORD, "password");
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "");
+        props.put(LdapUserManager.LDAP_ADMIN_GROUPS, "admin");
         props.put(LdapUserManager.LDAP_GROUP_SEARCH_BASE, "dc=example,dc=com");
         return props;
     }
 
     @Test
-    public void testGetUser() throws Exception {
-        User user = userManager.getUser("gauss", "password");
+    public void testGetXmlAdminUser() throws Exception {
+        User user = userManager.getUser("admin", "admin");
+        List <String> roles = user.getRoles();
+        Role role = userManager.getRole(roles.get(0));
 
-        assertEquals("gauss", user.getUserId());
-        assertEquals("gauss@ldap.example.com", user.getEmail());
+        assertEquals("admin", user.getUserId());
+        assertEquals(1, roles.size());
+        assertTrue(role.getPermission().isPermissionNameSet("ADMIN"));
     }
 
     @Test
-    public void testGetUserWithAllowedGroup() throws Exception {
+    public void testGetXmlReadUser() throws Exception {
+        User user = userManager.getUser("read", "read");
+        List <String> roles = user.getRoles();
+        Role role = userManager.getRole(roles.get(0));
+
+        assertEquals("read", user.getUserId());
+        assertEquals(1, roles.size());
+        assertTrue(role.getPermission().isPermissionNameSet("READ"));
+    }
+
+    @Test
+    public void testGetLdapUser() throws Exception {
+        User user = userManager.getUser("gauss", "password");
+        List <String> roles = user.getRoles();
+        Role role = userManager.getRole(roles.get(0));
+
+        assertEquals("gauss", user.getUserId());
+        assertEquals("gauss@ldap.example.com", user.getEmail());
+        assertEquals(1, roles.size());
+        assertTrue(role.getPermission().isPermissionNameSet("READ"));
+    }
+
+    @Test
+    public void testGetLdapUserWithAllowedGroup() throws Exception {
         Props props = getProps();
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test");
         final LdapUserManager manager = new LdapUserManager(props);
@@ -76,7 +104,7 @@ public class LdapUserManagerTest {
     }
 
     @Test
-    public void testGetUserWithAllowedGroupThatGroupOfNames() throws Exception {
+    public void testGetLdapUserWithAllowedGroupThatGroupOfNames() throws Exception {
         Props props = getProps();
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test2");
         final LdapUserManager manager = new LdapUserManager(props);
@@ -89,7 +117,7 @@ public class LdapUserManagerTest {
 
 
     @Test
-    public void testGetUserWithEmbeddedGroup() throws Exception {
+    public void testGetLdapUserWithEmbeddedGroup() throws Exception {
         Props props = getProps();
         props.put(LdapUserManager.LDAP_ALLOWED_GROUPS, "svc-test");
         props.put(LdapUserManager.LDAP_EMBEDDED_GROUPS, "true");
@@ -102,25 +130,25 @@ public class LdapUserManagerTest {
     }
 
     @Test
-    public void testGetUserWithInvalidPasswordThrowsUserManagerException() throws Exception {
+    public void testGetLdapUserWithInvalidPasswordThrowsUserManagerException() throws Exception {
         thrown.expect(UserManagerException.class);
         userManager.getUser("gauss", "invalid");
     }
 
     @Test
-    public void testGetUserWithInvalidUsernameThrowsUserManagerException() throws Exception {
+    public void testGetLdapUserWithInvalidUsernameThrowsUserManagerException() throws Exception {
         thrown.expect(UserManagerException.class);
         userManager.getUser("invalid", "password");
     }
 
     @Test
-    public void testGetUserWithEmptyPasswordThrowsUserManagerException() throws Exception {
+    public void testGetLdapUserWithEmptyPasswordThrowsUserManagerException() throws Exception {
         thrown.expect(UserManagerException.class);
         userManager.getUser("gauss", "");
     }
 
     @Test
-    public void testGetUserWithEmptyUsernameThrowsUserManagerException() throws Exception {
+    public void testGetLdapUserWithEmptyUsernameThrowsUserManagerException() throws Exception {
         thrown.expect(UserManagerException.class);
         userManager.getUser("", "invalid");
     }
