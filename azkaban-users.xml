@@ -1,0 +1,7 @@
+<azkaban-users>
+    <user username="admin" password="c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec" roles="admin" />
+    <user username="read" password="ee021c5aa94c55f1dbbe287200618d386799f21ce4e35af71c9e7474267ebaf5fde5436ea44d689c8abd9dbb24e76da9493f982453cad987d1ca003f9eb9ef34" roles="read" />
+
+    <role name="admin" permissions="ADMIN" />
+    <role name="read" permissions="READ"/>
+</azkaban-users>
