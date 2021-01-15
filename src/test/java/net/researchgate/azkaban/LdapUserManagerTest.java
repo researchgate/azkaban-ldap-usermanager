@@ -39,6 +39,9 @@ public class LdapUserManagerTest {
 
     private Props getProps() {
         Props props = new Props();
+
+        props.put(LdapUserManager.XML_FILE_PARAM, "azkaban-users.xml");
+
         props.put(LdapUserManager.LDAP_HOST, "localhost");
         props.put(LdapUserManager.LDAP_PORT, "11389");
         props.put(LdapUserManager.LDAP_USE_SSL, "false");

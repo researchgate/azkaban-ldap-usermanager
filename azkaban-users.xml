@@ -1,0 +1,11 @@
+<azkaban-users>
+    <user username="azkaban" password="azkaban" roles="admin" groups="admin" />
+
+    <role name="admin" permissions="ADMIN" />
+    <role name="metrics" permissions="METRICS"/>
+    <role name="read" permissions="READ"/>
+    <role name="write" permissions="WRITE"/>
+    <role name="execute" permissions="EXECUTE"/>
+    <role name="schedule" permissions="SCHEDULE"/>
+    <role name="staff" permissions="READ"/>
+</azkaban-users>

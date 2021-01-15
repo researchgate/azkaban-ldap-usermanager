@@ -1,5 +1,8 @@
 package net.researchgate.azkaban;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+
 import azkaban.user.*;
 import azkaban.utils.Props;
 import org.apache.directory.api.ldap.model.cursor.CursorException;
@@ -19,7 +22,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.util.List;
 
-public class LdapUserManager implements UserManager {
+public class LdapUserManager extends XmlUserManager {
     final static Logger logger = Logger.getLogger(UserManager.class);
 
     public static final String LDAP_HOST = "user.manager.ldap.host";
@@ -49,6 +52,7 @@ public class LdapUserManager implements UserManager {
     private boolean ldapEmbeddedGroups;
 
     public LdapUserManager(Props props) {
+        super(props);
         ldapHost = props.getString(LDAP_HOST);
         ldapPort = props.getInt(LDAP_PORT);
         useSsl = props.getBoolean(LDAP_USE_SSL);
@@ -71,72 +75,85 @@ public class LdapUserManager implements UserManager {
             throw new UserManagerException("Password is empty.");
         }
 
-        LdapConnection connection = null;
-        EntryCursor result = null;
-
+        User user = null;
         try {
-            connection = getLdapConnection();
-
-            result = connection.search(
-                    ldapUserBase,
-                    "(" + escapeLDAPSearchFilter(ldapUserIdProperty + "=" + username) + ")",
-                    SearchScope.SUBTREE
-            );
-
-            if (!result.next()) {
-                throw new UserManagerException("No user " + username + " found");
-            }
-
-            final Entry entry = result.get();
-
-            if (result.next()) {
-                throw new UserManagerException("More than one user found");
-            }
-
-            if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
-                throw new UserManagerException("User is not member of allowed groups");
-            }
-
-            connection.bind(entry.getDn(), password);
-
-            Attribute idAttribute = entry.get(ldapUserIdProperty);
-            Attribute emailAttribute = null;
-            if (ldapUEmailProperty.length() > 0) {
-                emailAttribute = entry.get(ldapUEmailProperty);
-            }
-
-            if (idAttribute == null) {
-                throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
-            }
-            User user = new User(idAttribute.getString());
-            if (emailAttribute != null) {
-                user.setEmail(emailAttribute.getString());
-            }
-
-            if (isMemberOfGroups(connection, entry, ldapAdminGroups)) {
-                logger.info("Granting admin access to user: " + username);
-                user.addRole("admin");
-            }
-
-            return user;
-
-        } catch (LdapException e) {
-            throw new UserManagerException("LDAP error: " + e.getMessage(), e);
-        } catch (CursorException e) {
-            throw new UserManagerException("Cursor error", e);
+            // calculate password SHA512 checksum
+            MessageDigest digest = MessageDigest.getInstance("SHA-512");
+            digest.reset();
+            digest.update(password.getBytes("utf8"));
+            String hashPassword = String.format("%0128x", new BigInteger(1, digest.digest()));
+            user = super.getUser(username, hashPassword);
+        } catch (Exception e) {
         }
-        finally {
-            if (result != null)
-                result.close();
 
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch(IOException e) {
-                    throw new UserManagerException("IO error", e);
+        if (user == null) {
+            LdapConnection connection = null;
+            EntryCursor result = null;
+
+            try {
+                connection = getLdapConnection();
+
+                result = connection.search(
+                        ldapUserBase,
+                        "(" + escapeLDAPSearchFilter(ldapUserIdProperty + "=" + username) + ")",
+                        SearchScope.SUBTREE
+                );
+
+                if (!result.next()) {
+                    throw new UserManagerException("No user " + username + " found");
+                }
+
+                final Entry entry = result.get();
+
+                if (result.next()) {
+                    throw new UserManagerException("More than one user found");
+                }
+
+                if (!isMemberOfGroups(connection, entry, ldapAllowedGroups)) {
+                    throw new UserManagerException("User is not member of allowed groups");
+                }
+
+                connection.bind(entry.getDn(), password);
+
+                Attribute idAttribute = entry.get(ldapUserIdProperty);
+                Attribute emailAttribute = null;
+                if (ldapUEmailProperty.length() > 0) {
+                    emailAttribute = entry.get(ldapUEmailProperty);
+                }
+
+                if (idAttribute == null) {
+                    throw new UserManagerException("Invalid id property name " + ldapUserIdProperty);
+                }
+                user = new User(idAttribute.getString());
+                if (emailAttribute != null) {
+                    user.setEmail(emailAttribute.getString());
+                }
+
+                if (isMemberOfGroups(connection, entry, ldapAdminGroups)) {
+                    logger.info("Granting admin access to user: " + username);
+                    user.addRole("admin");
+                }
+
+                user.addRole("read");
+            } catch (LdapException e) {
+                throw new UserManagerException("LDAP error: " + e.getMessage(), e);
+            } catch (CursorException e) {
+                throw new UserManagerException("Cursor error", e);
+            }
+            finally {
+                if (result != null)
+                    result.close();
+
+                if (connection != null) {
+                    try {
+                        connection.close();
+                    } catch(IOException e) {
+                        throw new UserManagerException("IO error", e);
+                    }
                 }
             }
         }
+        return user;
     }
 
     /**
