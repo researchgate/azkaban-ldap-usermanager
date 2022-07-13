@@ -41,7 +41,6 @@ public class LdapUserManagerTest {
         Props props = new Props();
         props.put(LdapUserManager.LDAP_HOST, "localhost");
         props.put(LdapUserManager.LDAP_PORT, "11389");
-        props.put(LdapUserManager.LDAP_USE_SSL, "false");
         props.put(LdapUserManager.LDAP_USER_BASE, "dc=example,dc=com");
         props.put(LdapUserManager.LDAP_USERID_PROPERTY, "uid");
         props.put(LdapUserManager.LDAP_EMAIL_PROPERTY, "mail");
