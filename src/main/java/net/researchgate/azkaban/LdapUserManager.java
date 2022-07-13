@@ -11,9 +11,9 @@ import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.filter.FilterEncoder;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
+import org.apache.directory.ldap.client.api.LdapConnectionConfig;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
-
-
+import org.apache.directory.ldap.client.api.NoVerificationTrustManager;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -25,6 +25,8 @@ public class LdapUserManager implements UserManager {
     public static final String LDAP_HOST = "user.manager.ldap.host";
     public static final String LDAP_PORT = "user.manager.ldap.port";
     public static final String LDAP_USE_SSL = "user.manager.ldap.useSsl";
+    public static final String LDAP_USE_TLS = "user.manager.ldap.useTls";
+    public static final String LDAP_DISABLE_CERT_VERIFICATION = "user.manager.ldap.disableCertVerification";
     public static final String LDAP_USER_BASE = "user.manager.ldap.userBase";
     public static final String LDAP_USERID_PROPERTY = "user.manager.ldap.userIdProperty";
     public static final String LDAP_EMAIL_PROPERTY = "user.manager.ldap.emailProperty";
@@ -38,6 +40,8 @@ public class LdapUserManager implements UserManager {
     private String ldapHost;
     private int ldapPort;
     private boolean useSsl;
+    private boolean useTls;
+    private boolean disableCertVerification;
     private String ldapUserBase;
     private String ldapUserIdProperty;
     private String ldapUEmailProperty;
@@ -51,7 +55,9 @@ public class LdapUserManager implements UserManager {
     public LdapUserManager(Props props) {
         ldapHost = props.getString(LDAP_HOST);
         ldapPort = props.getInt(LDAP_PORT);
-        useSsl = props.getBoolean(LDAP_USE_SSL);
+        useSsl = props.getBoolean(LDAP_USE_SSL, false);
+        useTls = props.getBoolean(LDAP_USE_TLS, false);
+        disableCertVerification = props.getBoolean(LDAP_DISABLE_CERT_VERIFICATION, false);
         ldapUserBase = props.getString(LDAP_USER_BASE);
         ldapUserIdProperty = props.getString(LDAP_USERID_PROPERTY);
         ldapUEmailProperty = props.getString(LDAP_EMAIL_PROPERTY);
@@ -308,7 +314,15 @@ public class LdapUserManager implements UserManager {
     }
 
     private LdapConnection getLdapConnection() throws LdapException {
-        LdapConnection connection = new LdapNetworkConnection(ldapHost, ldapPort, useSsl);
+        LdapConnectionConfig config = new LdapConnectionConfig();
+        config.setLdapHost(ldapHost);
+        config.setLdapPort(ldapPort);
+        config.setUseSsl(useSsl);
+        config.setUseTls(useTls);
+        if (disableCertVerification) {
+            config.setTrustManagers(new NoVerificationTrustManager());
+        }
+        LdapNetworkConnection connection = new LdapNetworkConnection(config);
         connection.bind(ldapBindAccount, ldapBindPassword);
         return connection;
     }
